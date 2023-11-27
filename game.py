@@ -1,6 +1,9 @@
+import random
+
 import pygame
 
 from Bird import bird_class, bird_group
+from Pipe import pipe_class, pipe_group
 
 pygame.init()
 
@@ -14,6 +17,9 @@ timer = pygame.time.Clock()
 fps = 60
 flying = False
 game_over = False
+pipe_gap = 150
+pipe_frequency = 1500
+last_pipe = pygame.time.get_ticks() - pipe_frequency
 
 # CREATE SCREEN
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -31,14 +37,26 @@ flappy = bird_class(100, int(HEIGHT / 2))
 bird_group.add(flappy)
 
 
-def process_scrolling_background():
-    global ground, ground_scroll, game_over
+def while_game_alive():
+    global ground, ground_scroll, game_over, last_pipe
     screen.blit(ground, (ground_scroll, HEIGHT2))
 
-    if game_over == False:
+    if game_over == False and flying == True:
+        # GENERATE THE PIPES
+        time_now = pygame.time.get_ticks()
+        if time_now - last_pipe > pipe_frequency:
+            pipe_height = random.randint(-100, 100)
+            btm_pipe = pipe_class(WIDTH, int(HEIGHT / 2) + pipe_height, -1, pipe_gap)
+            top_pipe = pipe_class(WIDTH, int(HEIGHT / 2) + pipe_height, 1, pipe_gap)
+            pipe_group.add(btm_pipe, top_pipe)
+            last_pipe = time_now
+
+        # DRAW AND SCROLL THE GROUND
         ground_scroll -= scroll_speed
         if abs(ground_scroll) > 35:
             ground_scroll = 0
+
+        pipe_group.update(scroll_speed)
 
 
 def bird_ground_collision():
@@ -48,8 +66,14 @@ def bird_ground_collision():
         flying = False
 
 
+def pipe_collision():
+    global game_over
+    if pygame.sprite.groupcollide(bird_group, pipe_group, False, False) or flappy.rect.top < 0:
+        game_over = True
+
+
 def game_loop():
-    global screen, HEIGHT, ground, ground_scroll, scroll_speed, flying
+    global screen, HEIGHT, ground, ground_scroll, scroll_speed, flying, game_over
     running = True
 
     while running:
@@ -62,11 +86,17 @@ def game_loop():
         bird_group.draw(screen)
         bird_group.update(HEIGHT, flying, game_over)
 
+        # DISPLAY PIPE
+        pipe_group.draw(screen)
+
+        # COLLISION WITH PIPE
+        pipe_collision()
+
         # BIRD AND GROUND COLLISION
         bird_ground_collision()
 
-        # DISPLAY GROUND
-        process_scrolling_background()
+        # GAME != OVER
+        while_game_alive()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
