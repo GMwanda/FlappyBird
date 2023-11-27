@@ -3,6 +3,7 @@ import random
 import pygame
 
 from Bird import bird_class, bird_group
+from Button import button_class
 from Pipe import pipe_class, pipe_group
 
 pygame.init()
@@ -20,6 +21,10 @@ game_over = False
 pipe_gap = 150
 pipe_frequency = 1500
 last_pipe = pygame.time.get_ticks() - pipe_frequency
+score = 0
+pass_pipe = False
+font = pygame.font.SysFont('Helvetica', 30)
+white = (255, 255, 255)
 
 # CREATE SCREEN
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -29,12 +34,22 @@ pygame.display.set_caption("Flappy Bird")
 background = pygame.image.load('Assets/bg.png')
 resized_background = pygame.transform.scale(background, (WIDTH, HEIGHT2))
 ground = pygame.image.load('Assets/ground.png')
+button_img = pygame.image.load('Assets/restart.png')
 
 # CLASSES
 flappy = bird_class(100, int(HEIGHT / 2))
+btn = button_class(WIDTH // 2 - 50, HEIGHT // 2 - 100, button_img)
 
 # GROUPS
 bird_group.add(flappy)
+
+
+def reset_game():
+    pipe_group.empty()
+    flappy.rect.x = 100
+    flappy.rect.y = int(HEIGHT / 2)
+    score = 0
+    return score
 
 
 def while_game_alive():
@@ -59,6 +74,14 @@ def while_game_alive():
         pipe_group.update(scroll_speed)
 
 
+def while_game_dead():
+    global game_over
+    if game_over == True:
+        if btn.draw(screen) == True:
+            game_over = False
+            score = reset_game()
+
+
 def bird_ground_collision():
     global game_over, flying
     if flappy.rect.bottom >= HEIGHT2:
@@ -72,8 +95,27 @@ def pipe_collision():
         game_over = True
 
 
+def check_score():
+    global pass_pipe, score
+    if len(pipe_group) > 0:
+        if bird_group.sprites()[0].rect.left > pipe_group.sprites()[0].rect.left and bird_group.sprites()[
+            0].rect.right < pipe_group.sprites()[0].rect.right and pass_pipe == False:
+            pass_pipe = True
+        if pass_pipe == True:
+            if bird_group.sprites()[0].rect.left > pipe_group.sprites()[0].rect.right:
+                score += 1
+                pass_pipe = False
+
+    draw_text(f'Score: {str(score)}', font, white, int(WIDTH / 12), 20)
+
+
+def draw_text(text, font, text_color, x, y):
+    img = font.render(text, True, text_color)
+    screen.blit(img, (x, y))
+
+
 def game_loop():
-    global screen, HEIGHT, ground, ground_scroll, scroll_speed, flying, game_over
+    global screen, HEIGHT, ground, ground_scroll, scroll_speed, flying, game_over, pass_pipe
     running = True
 
     while running:
@@ -89,6 +131,9 @@ def game_loop():
         # DISPLAY PIPE
         pipe_group.draw(screen)
 
+        # CHECK SCORE
+        check_score()
+
         # COLLISION WITH PIPE
         pipe_collision()
 
@@ -97,6 +142,9 @@ def game_loop():
 
         # GAME != OVER
         while_game_alive()
+
+        # GAME OVER
+        while_game_dead()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
